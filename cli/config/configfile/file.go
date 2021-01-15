@@ -219,7 +219,25 @@ func (configFile *ConfigFile) Save() (retErr error) {
 	// Handle situation where the configfile is a symlink
 	cfgFile := configFile.Filename
 	if f, err := os.Readlink(cfgFile); err == nil {
-		cfgFile = f
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		if err := os.Chdir(filepath.Dir(configFile.Filename)); err != nil {
+			return err
+		}
+		defer func() {
+			if err := os.Chdir(cwd); err != nil {
+				logrus.WithError(err).WithField("cwd", cwd).Debug("Error switching back to original working directory")
+			}
+		}()
+
+		absF, err := filepath.Abs(f)
+		if err != nil {
+			return err
+		}
+		cfgFile = absF
 	}
 
 	// Try copying the current config file (if any) ownership and permissions
